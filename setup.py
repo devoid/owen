@@ -19,8 +19,8 @@ setup(
     install_requires=required,
     entry_points={
         'console_scripts' : [
-              'ibm-service = owen.cmd.ibm_service.main',
-              'ibm-ticket = owen.cmd.ibm_ticket.main',
+              'ibm-service = owen.cmd.ibm_service:main',
+              'ibm-ticket = owen.cmd.ibm_ticket:main',
         ],
     },
 )
