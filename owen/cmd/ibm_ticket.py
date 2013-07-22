@@ -126,7 +126,6 @@ class PartRequest(Base):
         self.closed = True
         self.date_closed = datetime.now()
 
-
 def get_model_and_serial(host):
     filename = os.path.join(ASU_COLLECTION_DIR, host)
     if not os.path.isfile(filename):
@@ -308,3 +307,4 @@ def main():
     shell.main(sys.argv[1:])
 
 if __name__ == '__main__':
+    main()

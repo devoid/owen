@@ -30,6 +30,8 @@ def handle_after_hours_popup(driver, form_win):
             service_tomorrow.click()
             driver.find_element_by_name("ibm-submit").click()
             done = True
+        except Exception:
+            pass
         if done:
             break
 
@@ -47,7 +49,7 @@ def submit_ticket(args):
     driver.get("https://www-930.ibm.com/support/esc/signin.jsp")
     fill_form(
         driver,
-        {'j_username' : CONF.get('IBM', 'username') 
+        {'j_username' : CONF.get('IBM', 'username'),
          'j_password' : CONF.get('IBM', 'password')})
     driver.find_element_by_name('ibm-submit').click()
     driver.get("https://www-930.ibm.com/support/esc/placecall_upr.jsp")
@@ -98,3 +100,4 @@ def main():
 
 
 if __name__ == '__main__':
+    main()
