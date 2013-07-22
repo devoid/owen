@@ -303,6 +303,8 @@ class TicketShell(Shell):
             q.delete()
             self.session.commit()
 
-if __name__ == '__main__':
+def main():
     shell = TicketShell(DEFAULT_DB_PATH)
     shell.main(sys.argv[1:])
+
+if __name__ == '__main__':

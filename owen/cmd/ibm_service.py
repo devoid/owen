@@ -79,7 +79,8 @@ def submit_ticket(args):
     driver.quit()
 
 
-def main(args):
+def main():
+    args = sys.argv[1:]
     desc = "Create ticket with IBM Electronic Service Call"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--product', type=str, required=True,
@@ -97,5 +98,3 @@ def main(args):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
-
