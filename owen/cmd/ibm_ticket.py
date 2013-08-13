@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import argparse
 from datetime import datetime
 import collections
 import os
@@ -12,6 +11,9 @@ import sqlalchemy.sql
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, backref, sessionmaker
 
+
+import owen.cli as cli
+
 DEFAULT_DB_PATH = '/root/service_tickets.sqlite'
 
 def warn(error):
@@ -21,61 +23,8 @@ def die(error):
     warn(error)
     sys.exit(1)
 
-def _add_arg(f, *args, **kwargs):
-    """Bind CLI arguments to a shell.py `do_foo` function."""
-    if not hasattr(f, 'arguments'):
-        f.arguments = []
-    if (args, kwargs) not in f.arguments:
-        f.arguments.insert(0, (args, kwargs))
 
 
-def arg(*args, **kwargs):
-    """Decorator for CLI arguments."""
-    def _decorator(func):
-        _add_arg(func, *args, **kwargs)
-        return func
-    return _decorator
-
-
-class Shell(object):
-    
-    def get_base_parser(self):
-        desc = self.__doc__ or ''
-        parser = argparse.ArgumentParser(description=desc.strip())
-        return parser
-    
-    def get_subcommand_parser(self):
-        parser = self.get_base_parser()
-        self.subcommands = {}
-        subparsers = parser.add_subparsers(metavar='<subcommand>')
-        self._find_actions(subparsers)
-        return parser
-
-    def _find_actions(self, subparsers):
-        for attr in (a for a in dir(self.__class__) if a.startswith('do_')):
-            command = attr[3:].replace('_', '-')
-            callback = getattr(self.__class__, attr)
-            desc = callback.__doc__ or ''
-            action_help = desc.strip().split('\n')[0]
-            arguments = getattr(callback, 'arguments', [])
-            subparser = subparsers.add_parser(command,
-                help=action_help,
-                description=desc,
-                add_help=False,
-            )
-            subparser.add_argument('-h', '--help',
-                action='help',
-                help=argparse.SUPPRESS,
-            )
-            self.subcommands[command] = subparser
-            for (args, kwargs) in arguments:
-                subparser.add_argument(*args, **kwargs)
-            subparser.set_defaults(func=callback)
-
-    def main(self, argv):
-        parser = self.get_subcommand_parser()
-        args = parser.parse_args(argv)
-        args.func(self, args)
 
 ## Objects ##
 Base = declarative_base()
@@ -140,7 +89,7 @@ def get_model_and_serial(host):
     _, serial = subprocess.check_output(cmd).rstrip().split('=')
     return (model, serial)
 
-class TicketShell(Shell):
+class TicketShell(cli.Shell):
     def __init__(self, database):
         database = os.path.abspath(database)
         self.engine = sqlalchemy.create_engine('sqlite:///'+database) 
@@ -167,8 +116,8 @@ class TicketShell(Shell):
                 tbl.add_row(formatter(obj))
             print tbl.get_string(border=None)
     
-    @arg('--closed', action='store_true', help='Include closed tickets')
-    @arg('--csv', action='store_true', help='Print as CSV')
+    @cli.arg('--closed', action='store_true', help='Include closed tickets')
+    @cli.arg('--csv', action='store_true', help='Print as CSV')
     def do_ticket_list(self, args):
         q = self.session.query(PartRequest)
         if not args.closed:
@@ -187,10 +136,10 @@ class TicketShell(Shell):
         q.order_by(PartRequest.date_created)
         self._table(q.all(), columns, formatter=row_format, as_csv=args.csv)
 
-    @arg('--hostname', required=True, help="Machine hostname")
-    @arg('--part', required=True, help="ID of malfunctioning part")
-    @arg('--status', help="Optional current status message")
-    @arg('--count', help="Number of items requested", default=1)
+    @cli.arg('--hostname', required=True, help="Machine hostname")
+    @cli.arg('--part', required=True, help="ID of malfunctioning part")
+    @cli.arg('--status', help="Optional current status message")
+    @cli.arg('--count', help="Number of items requested", default=1)
     def do_ticket_create(self, args):
         machine = self.session.query(Machine).\
             filter(Machine.hostname == args.hostname).first()
@@ -205,10 +154,10 @@ class TicketShell(Shell):
         elif not part:
             die("Unknown part id %s" % args.part)
             
-    @arg('ticket', help='Ticket ID')
-    @arg('--delete', action='store_true', help="Delete the ticket")
-    @arg('--status', help="Free-form status message")
-    @arg('--number', '-n', help='External ticket-tracking number')
+    @cli.arg('ticket', help='Ticket ID')
+    @cli.arg('--delete', action='store_true', help="Delete the ticket")
+    @cli.arg('--status', help="Free-form status message")
+    @cli.arg('--number', '-n', help='External ticket-tracking number')
     def do_ticket_alter(self, args):
         q = self.session.query(PartRequest).\
             filter(PartRequest.id == args.ticket)
@@ -225,7 +174,7 @@ class TicketShell(Shell):
             q.delete()
         self.session.commit()
 
-    @arg('ticket', help='Ticket ID')
+    @cli.arg('ticket', help='Ticket ID')
     def do_ticket_close(self, args):
         pr = self.session.query(PartRequest).filter(
             PartRequest.id == args.ticket).first()
@@ -239,16 +188,16 @@ class TicketShell(Shell):
                     ['id', 'fru', 'description'])
     
     
-    @arg('--desc', required=True, help='description of the part') 
-    @arg('--fru', help='FRU number')
+    @cli.arg('--desc', required=True, help='description of the part') 
+    @cli.arg('--fru', help='FRU number')
     def do_part_create(self, args):
         self._add_obj(Part(description=args.desc, fru=args.fru))
         
 
-    @arg('part', help='part id')
-    @arg('--desc', help='description of the part') 
-    @arg('--fru', help='FRU number')
-    @arg('--delete', action='store_true', help='Delete this entry')
+    @cli.arg('part', help='part id')
+    @cli.arg('--desc', help='description of the part') 
+    @cli.arg('--fru', help='FRU number')
+    @cli.arg('--delete', action='store_true', help='Delete this entry')
     def do_part_alter(self, args):
         q = self.session.query(Part).filter(Part.id == args.part)
         part = q.first()
@@ -273,18 +222,18 @@ class TicketShell(Shell):
                     ['id', 'hostname', 'machine_type', 'serial'])
     
     
-    @arg('hostname', help='Hostname of the machine')
-    @arg('machine_type', help='Machine model number')
-    @arg('serial', help='Serial number of the machine')
+    @cli.arg('hostname', help='Hostname of the machine')
+    @cli.arg('machine_type', help='Machine model number')
+    @cli.arg('serial', help='Serial number of the machine')
     def do_host_create(self, args):
         self._add_obj(Machine(hostname=args.hostname,
             machine_type=args.machine_type, serial=args.serial))
     
     
-    @arg('hostname', help='Hostname of the machine')
-    @arg('--type','-t', help='Machine model number')
-    @arg('--serial','-s', help='Serial number of the machine')
-    @arg('--delete','-d', action='store_true', help='Delete this entry')
+    @cli.arg('hostname', help='Hostname of the machine')
+    @cli.arg('--type','-t', help='Machine model number')
+    @cli.arg('--serial','-s', help='Serial number of the machine')
+    @cli.arg('--delete','-d', action='store_true', help='Delete this entry')
     def do_host_alter(self, args):
         q = self.session.query(Machine).\
             filter(Machine.hostname == args.hostname) 
