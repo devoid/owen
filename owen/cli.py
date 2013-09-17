@@ -1,5 +1,13 @@
 """ owen.cli - helpers for command line functions. """
 import argparse
+import sys
+
+def warn(error):
+    print >>sys.stderr, error
+
+def die(error):
+    warn(error)
+    sys.exit(1)
 
 def _add_arg(f, *args, **kwargs):
     """Bind CLI arguments to a shell.py `do_foo` function."""
