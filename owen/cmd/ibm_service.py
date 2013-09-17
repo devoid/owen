@@ -7,8 +7,10 @@ import sys
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+import os
 
-CONF_FILE = '/root/.owen'
+HOME = os.environ['HOME']
+CONF_FILE = '%s/.owen' % HOME
 CONF = ConfigParser.RawConfigParser()
 CONF.read(CONF_FILE)
 
