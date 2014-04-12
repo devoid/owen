@@ -1,22 +1,62 @@
 #!/usr/bin/env python
+import ConfigParser
+import json
 import os
 import prettytable
 import sys
 import sqlalchemy
 import sqlalchemy.sql
 from sqlalchemy.orm import sessionmaker
+import urllib2
 
 from owen import cli
 from owen.db import models as models
 
 
+class TicketSubmitter(object):
+    def __init__(self, config):
+        self.config = config
+
+    def submit_ticket(self, part_request, comments=None):
+        if part_request.part.fru is not None:
+            part_description = 'FRU %s' % part_request.part.fru
+        else:
+            part_description = part_request.part.description
+        if comments is None:
+            comments = ('Part FRU %s failed. Please send replacement.'
+                        % part_description)
+
+        body = {'Product': part_request.machine.machine_type,
+                'Serial_Number': part_request.machine.serial,
+                'Part_Number': part_request.part.fru or None,
+                'Comments': comments}
+        conf_settings = ['secret', 'j_username', 'j_password', 'Customer_Name',
+                         'CustPhoneNumber', 'Street', 'City', 'State', 'Zip',
+                         'Contact_Location', 'ContactName', 'ContPhoneNumber']
+        for setting in conf_settings:
+            body[setting] = self.config.get('default', setting)
+        url = self.config.get('default', 'submit_url')
+        req = urllib2.Request(url)
+        req.add_header('Content-Type: application/json')
+        req.add_data(json.dumps(body))
+        rsp = urllib2.urlopen(req)
+        code = rsp.getcode()
+        if code != 200:
+            print >> sys.stderr, "Failed ticket submit request! %d" % code
+            sys.exit(1)
+
+
 class TicketShell(cli.Shell):
-    def __init__(self, database):
-        database = os.path.abspath(database)
-        self.engine = sqlalchemy.create_engine('sqlite:///'+database)
+    def __init__(self, configfile):
+        config = ConfigParser.ConfigParser()
+        config.read(configfile)
+        self.config = config
+        database = config.get('default', 'database')
+        self.engine = sqlalchemy.create_engine(database)
         models.Base.metadata.create_all(self.engine)
         session_class = sessionmaker(bind=self.engine)
         self.session = session_class()
+        self.submitter = TicketSubmitter(config)
 
     def _add_obj(self, obj):
         self.session.add(obj)
@@ -61,19 +101,21 @@ class TicketShell(cli.Shell):
     @cli.arg('--part', required=True, help="ID of malfunctioning part")
     @cli.arg('--status', help="Optional current status message")
     @cli.arg('--count', help="Number of items requested", default=1)
+    @cli.arg('--submit', action='store_true', help='Submit ticket to IBM')
     def do_ticket_create(self, args):
         machine = self.session.query(models.Machine).\
             filter(models.Machine.hostname == args.hostname).first()
         part = self.session.query(models.Part).\
             filter(models.Part.id == args.part).first()
-        if machine and part:
-            self._add_obj(models.PartRequest(
-                status=args.status, machine=machine,
-                part=part, part_count=args.count))
-        elif not machine:
+        if not machine:
             cli.die("Unknown machine hostname %s" % args.hostname)
         elif not part:
             cli.die("Unknown part id %s" % args.part)
+        pr = models.PartRequest(status=args.status, machine=machine,
+                                part=part, part_count=args.count)
+        if args.submit:
+            self.submitter.submit_ticket(pr)
+        self._add_obj(pr)
 
     @cli.arg('ticket', help='Ticket ID')
     @cli.arg('--delete', action='store_true', help="Delete the ticket")
@@ -169,8 +211,8 @@ class TicketShell(cli.Shell):
 
 
 def main():
-    DEFAULT_DB_PATH = os.path.join(os.environ.get('HOME'), '.owen.sqlite')
-    shell = TicketShell(DEFAULT_DB_PATH)
+    DEFAULT_CONF_PATH = os.path.join(os.environ.get('HOME'), '.owen.conf')
+    shell = TicketShell(DEFAULT_CONF_PATH)
     shell.main(sys.argv[1:])
 
 if __name__ == '__main__':
