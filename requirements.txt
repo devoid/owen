@@ -7,3 +7,4 @@ prettytable
 python-novaclient>=2.6.10
 selenium>=2.33.0
 SQLAlchemy>=0.7,<=0.7.99
+flask

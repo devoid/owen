@@ -1,0 +1,19 @@
+# This is a configuration file for the ticket submission
+# server. It runs the selenium workflow to submit tickets.
+# I couldn't get it to run in headless mode so it sits on a
+# desktop machine. :-(
+
+[default]
+# host and port
+# Where the server listens for requests.
+port=
+host=
+# secret
+# A secret string that must be passed with the request
+# in order for tickets to be submitted. Poor mans auth.
+secret=foobar
+
+[ssl]
+# Well if we're passing the secret, we'd better do SSL
+private-key-file=
+certificate-file=
