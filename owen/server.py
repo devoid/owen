@@ -94,13 +94,13 @@ def submit_ticket():
     driver.get("https://www-930.ibm.com/support/esc/placecall_upr.jsp")
     fill_form(driver, submit_form)
     # Before we submit, capture the current window handle
-    # form_window = driver.current_window_handle
+    form_window = driver.current_window_handle
     # Click submit button
-    # elem = driver.find_element_by_name("ibm-submit")
-    # elem.click()
+    elem = driver.find_element_by_name("ibm-submit")
+    elem.click()
     # There may be a popup for after-hours stuff
-    # handle_after_hours_popup(driver, form_window)
-    # time.sleep(10)
+    handle_after_hours_popup(driver, form_window)
+    time.sleep(8)
     driver.quit()
     response = flask.Response(None, status=200, mimetype='text/plain')
     return response
